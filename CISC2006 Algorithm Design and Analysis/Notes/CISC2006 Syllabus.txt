@@ -1,0 +1,769 @@
+# CISC2006 **Syllabus** 
+# 代码不用看
+
+## I. Binary Search Trees
+
+### 1. Tree
+
+#### 1.1 树的特征
+
+1. 层次性：按层次分类，越上级越普遍
+2. 独立性：子节点之间是互相独立、隔离的
+3. 唯一性：每一个叶节点都有唯一性
+
+#### 1.2 相关术语
+
+1. 节点Node：组成树的基本部分，每个节点具有名称（键值），可以保存额外数据项
+   - 子节点Children：入边均来自于同一节点的若干节点
+   - 父节点Parent：一个节点是其所有出边所连接节点
+   - 兄弟节点Sibling：具有同一父节点的节点集合
+   - 根Root：树中唯一一个没有入边的节点
+   - 叶节点Leaf：没有子节点的节点
+2. 边Edge：每条边连接两个节点，每个节点（除根节点）都有来自另一节点的入边，每个节点（除叶节点）都有指向其他节点的出边
+3. 路径Path：由边依次连接在一起的节点的有序列表
+4. 子树Subtree：一个节点和其所有子孙节点及相关边的集合
+5. 层级Level：从根节点开始到达一个节点的路径，所包含边的数量
+6. 高度Height：树中所有节点的最大层级
+
+#### 1.3 定义
+
+##### 定义1
+
+树由若干节点，以及两两连接节点的边组成，并有如下性质：
+
+- 其中一个节点被设定为根
+- 除根节点外的每个节点n都切有一条来自节点p的边，p是n的父节点
+- 每个节点从根开始的路径是唯一的
+- 如果每个节点最多有两个子节点，该树称为**二叉树**
+
+##### 定义2（递归定义）
+
+树是
+
+- 空集；
+- 或由根节点及0或多个子树构成，每个子树的根到根节点具有边相连
+
+### 2 实现
+
+#### 2.1 嵌套列表法实现
+
+使用python中的list数据结构来实现二叉树结构：递归的嵌套列表，由具有3个元素的列表[root, left, right]实现
+
+- 第一个元素为根节点的值root
+- 第二个元素是左子树left
+- 第三个元素是右子树right
+
+程序实现
+
+```python
+def binaryTree(root):           # 创建二叉树
+    return [root, [], []]       # 创建一个只有根节点的二叉树
+
+def insertBranch(root, direction, newBranch): # 在原有树root中插入子树newBranch
+    if direction == 'l':
+        t = root.pop(1)                       # 将原有的左子树拿出
+        if len(t) > 1:                        # 如果原来的左子树非空
+            root.insert(1, [newBranch, t, []])# 在左子树位置插入新的子树，并将原有左子树作为新插入子树的左子树
+        else:                                  # 如果原来的左子树为空
+            root.insert(1, [newBranch, [], []])# 直接插入新的子树
+    if direction == 'r':
+        t = root.pop(2)
+        if len(t) > 1:
+            root.insert(2, [newBranch, t, []])
+        else:
+            root.insert(2, [newBranch, [], []])
+    return root
+
+def getRootValue(root):		# 查询根节点
+    return root[0]				# 返回列表第一个值
+
+def setRootValue(root, newValue):	# 设置根节点值
+    root[0] = newValue
+
+def getChild(root, direction):	# 获取子节点值
+    if direction == 'l':
+        return root[1]
+    if direction == 'r':
+        return root[2]
+```
+
+#### 2.2 链表方式实现
+
+每个节点保存根节点的数据项，以及指向左右子树的链接
+
+<img src="/Users/rocher/Library/Application Support/typora-user-images/image-20240416182103414.png" alt="image-20240416182103414" style="zoom:40%;" />
+
+算法分析：
+
+- 定义一个BinaryTree类，成员key保存根节点数据项，成员left/rightChild则保存指向左右子树的引用（同样是BinaryTree对象）
+
+程序实现
+
+```python
+class BinaryTree:
+    def __init__(self, rootObj):
+        self.key = rootObj
+        self.leftChild = None
+        self.rightChild = None
+
+    def insertLeft(self, newNode):
+        if self.leftChild == None:
+            self.leftChild = BinaryTree(newNode)
+        else:
+            tree = BinaryTree(newNode)
+            tree.leftChild = self.leftChild
+            self.leftChild = tree
+
+    def insertRight(self, newNode):
+        if self.rightChild == None:
+            self.rightChild = BinaryTree(newNode)
+        else:
+            tree = BinaryTree(newNode)
+            tree.rightChild = self.rightChild
+            self.rightChild = tree
+
+    def getLeftChild(self):
+        return self.leftChild
+
+    def getRightChild(self):
+        return self.rightChild
+
+    def getRootValue(self):
+        return self.key
+
+    def setRootValue(self, newValue):
+        self.key = newValue
+```
+
+### 3. 应用案例：表达式解析
+
+使用树表示表达式，例如下图计算$(7+3)\times(5-2)$:
+
+<img src="/Users/rocher/Library/Application Support/typora-user-images/image-20240416185943526.png" alt="image-20240416185943526" style="zoom:40%;" />
+
+树中的每个子树都表示一个子表达式，将该子树替换成子表达式值的节点，即可实现求值
+
+任务目标：
+
+- 从全括号表达式构建解析树
+- 利用解析树对表达式求值
+- 从解析树恢复原表达式的全括号字符串形式
+
+算法分析：
+
+1. 全括号表达式分为单词Token列表：
+   - Token分为括号（），操作符+-*/和操作数0-9
+   - 左括号就是表达式的开始，右括号表示表达式的结束
+2. 创建表达式解析树，规则如下：
+   - 创建空树，当前节点为根节点
+   - 读入左括号，创建左子节点，当前节点指针下降至左子节点
+   - 读入操作数，当前节点设置为该数，指针上升到父节点
+   - 读入操作符，当前节点设置为该操作符，创建右子节点，当前节点指针下降至右子节点
+   - 读入右括号，指针上升至父节点
+3. 使用解析树求值：由于二叉树是一种递归数据结构，可以设计递归的evaluate函数进行计算
+   - 基本结束条件：叶节点作为根节点时，其数据项即为子表达式树的值
+   - 缩小规模：将表达式树分为左子树，右子树
+   - 调用自身：调用自身计算左子树与右子树的值，将左右子树的值依据根节点的操作符计算求值
+
+代码实现
+
+```python
+def buildParseTree(phrase):
+    tokenList = []                  # 读取表达式并以列表形式存储
+    for token in phrase:
+        tokenList.append(token)
+
+    eTree = BinaryTree('')      # 创建一个空树
+    stackList = []              # 使用栈存储当前节点指针
+    stackList.append(eTree)
+    currentTree = eTree         # 当前节点指针指向初始根节点
+
+    for token in tokenList:
+        if token == '(':															# 左括号
+            currentTree.insertLeft('')								# 创建左节点
+            stackList.append(currentTree)							# 储存前一指针位置
+            currentTree = currentTree.getLeftChild()	# 当前指针位置设为左子节点
+        elif token not in ['+', '-', '*', '/']:				# 数字
+            currentTree.setRootValue(int(token))			# 将当前节点设置为数字
+            currentTree = stackList.pop()							# 指针上升，读取栈中存储的位置
+        elif token in ['+', '-', '*', '/']:						# 操作符
+            currentTree.setRootValue(token)						# 当前节点值设置为操作符
+            currentTree.insertRight('')								# 创建右子节点
+            stackList.append(currentTree)							# 储存前一指针位置
+            currentTree = currentTree.getRightChild()	# 当前指针设置为右子节点
+        elif token == ')':														# 右括号
+            currentTree = stackList.pop()							# 指针上升，读取栈中位置
+        else:
+            raise ValueError
+
+    return eTree
+
+def evaluate(parseTree):
+    leftTree = parseTree.getLeftChild()			# 获取左子树
+    rightTree = parseTree.getRightChild()		# 获取右子树
+
+    if leftTree and rightTree:	# 左右子树不为空时
+        op = parseTree.getRootValue()
+        if op == '+':						# 递归调用分别计算左右子树的值
+            return evaluate(leftTree) + evaluate(rightTree)
+        if op == '-':
+            return evaluate(leftTree) + evaluate(rightTree)
+        if op == '*':
+            return evaluate(leftTree) * evaluate(rightTree)
+        if op == '/':
+            return evaluate(leftTree) / evaluate(rightTree)
+    else:												# 结束条件：无左右子树
+        return parseTree.getRootValue()
+```
+
+### 4. 遍历Traversals
+
+- 前序遍历preorder：先访问根节点，再递归地前序访问左子树，最后前序访问右子树
+
+  ```python
+  def preorder(tree):
+      if tree:
+          print(tree.getRootValue())
+          preorder(tree.getLeftChild())
+          preorder(tree.getRightChild())
+  ```
+
+- 中序遍历inorder：先递归地中序访问左子树，再访问根节点，最后中序访问右子树
+
+  ```python
+  def inorder(tree):
+      if tree:
+          inorder(tree.getLeftChild())
+          print(tree.getRootValue())
+          postorder(tree.getRightChild())
+  ```
+
+- 后序遍历postorder：先递归地后序访问左子树，再后序访问右子树，最后访问根节点
+
+  ```python
+  def postorder(tree):
+      if tree:
+          postorder(tree.getLeftChild())
+          postorder(tree.getRightChild())
+          print(tree.getRootValue())
+  ```
+
+> 举例说明以下树的三种遍历方式
+>
+> <img src="/Users/rocher/Library/Application Support/typora-user-images/image-20240416204831011.png" alt="image-20240416204831011" style="zoom:50%;" />
+>
+> 前序遍历：7、8、11、18、17、12、22、19、9、14、10
+>
+> 中序遍历：18、11、17、8、22、19、12、7、14、10、9
+>
+> 后序遍历：18、17、11、22、19、12、8、14、10、9、7
+
+### 5. 平衡二叉树
+
+平衡二叉树，除叶节点所在层外，所有层都达到了最大节点数量，并且叶节点从左至右紧密排列
+
+### 6. 二叉查找树
+
+比父节点小的key都出现在左子树，比父节点大的key都出现在右子树
+
+### 7. AVL树
+
+在新key插入时一直保持平衡的二叉查找树，即平衡二叉查找树。
+
+> 平衡因子balance factor：在AVL树的实现中，需要对每个节点跟踪平衡因子参数，其定义为左右子树的高度差
+>
+> ​			balanceFactor = height(leftSubTree) - height(rightSubTree)
+>
+> 若平衡因子为正，称为左重left-heavy，为负则称为右重right-heavy，为零则为平衡balanced。
+
+如果一个二叉查找树的每个节点的平衡因子都在[-1, 0, 1]中，则该二叉查找树就是一个AVL树。
+
+#### 7.1 插入元素
+
+1. 将元素按照二叉搜索树的方法进行插入，即比节点大就下沉到节点右侧，比节点小就下沉到节点左侧，直至插入完成，记录插入路径
+
+2. 沿插入路径逐级回溯检查，观察每个节点的平衡因子是否为[-1, 0, 1]
+
+3. 当某个节点平衡因子不为[-1, 0, 1]时，针对插入的不同情况执行不同的调整策略
+
+   ​	![image-20240417183112309](/Users/rocher/Library/Application Support/typora-user-images/image-20240417183112309.png)
+
+   ![image-20240417183139928](/Users/rocher/Library/Application Support/typora-user-images/image-20240417183139928.png)
+
+   - LL型：插入元素落在了左子树的左侧子树，此时对A节点进行“右旋”操作
+   - RR型：插入元素落在了右子树的右侧子树，此时对A节点进行“左旋”操作
+   - LR型状态：插入元素落在左子树的右侧子树，此时需要将该右侧子树拆分，再进行“双旋”操作
+   - RL型状态：插入元素落在右子树的左侧子树，同理，进行“双旋操作”
+
+4. 调整完成后，继续回溯并检查，直至所有节点平衡度均为[-1, 0, 1]
+
+> 例题：有如下AVL树，将元素24插入该树中
+>
+> <img src="/Users/rocher/Library/Application Support/typora-user-images/image-20240417183315556.png" alt="image-20240417183315556" style="zoom:40%;" />
+>
+> 	1. 首先按二叉查找树路径进行插入：15右侧-20右侧-23右侧-25左侧
+> 	1. 沿路径回溯：25节点平衡因子为1，23节点平衡因子为-1，20节点平衡因子为-2，进行调整
+> 	1. 此情况属于RR型，即插入元素在20节点右子树的右子树上，进行左旋操作：将23节点上提，21节点连20节点，20节点作为23节点的左子节点
+> 	1. 继续检查路径，15节点的平衡因子为1，达到AVL树标准
+
+#### 7.2 删除元素
+
+首先对元素进行查询，获取元素所在位置，再进行删除，此时待删除元素共有三种状态：无子树、有一个子树以及有两个子树。
+
+1. 删除无子树的元素：直接删除
+2. 删除有一个子树的元素：删除后，子树继承其位置
+3. 删除有两个子树的元素：寻找该元素的后驱元素（即整个搜索树按顺序排列元素时，该元素的下一个元素），使用后驱元素替换该元素
+
+删除步骤完成后，同样需要沿路径进行调整，调整方法与插入时相同，进行“左旋”“右旋”“双旋”。判断的依据是观察哪一子树最为“突出”：
+
+- LL型：A平衡因子为2，B平衡因子为1，即左侧子树的左侧子树最为突出，采取右旋操作
+
+  <img src="/Users/rocher/Library/Application Support/typora-user-images/image-20240417192729748.png" alt="image-20240417192729748" style="zoom:30%;" />
+
+- LR型：A平衡因子为2，B平衡因子为-1，即左侧子树的右侧子树最为突出，采取双旋操作
+
+  <img src="/Users/rocher/Library/Application Support/typora-user-images/image-20240417192911749.png" alt="image-20240417192911749" style="zoom:30%;" />
+
+- RL型：A的平衡因子为-2，C的平衡因子为1，即右侧子树的左侧子树最为突出，采取双旋操作
+
+  <img src="/Users/rocher/Library/Application Support/typora-user-images/image-20240417193031835.png" alt="image-20240417193031835" style="zoom:30%;" />
+
+- RR型：A的平衡因子为-2，C的平衡因子为-1，即右侧子树的右侧子树最为突出，采取左旋操作
+
+  <img src="/Users/rocher/Library/Application Support/typora-user-images/image-20240417193145629.png" alt="image-20240417193145629" style="zoom:30%;" />
+
+  
+
+## II. Priority Queue
+
+### 1.定义
+
+普通队列为先进先出FIFO，其变体**优先队列**满足：
+
+- 优先队列的出队与队列相同，即队首出队
+- 优先队列内部，数据项的次序由优先级决定：高优先级的数据项排在队首，低优先级的数据项排在队尾
+
+### 2. 实现
+
+> 1. 插入push：根据优先级排序，插入对应位置
+> 2. 弹出优先级最高元素pop：弹出队首
+> 3. 获取优先级最高的元素peek：获取队首
+
+## III. Heap and Heapsort
+
+### 1.堆Heap
+
+#### 1.1 定义
+
+堆在形式上是一种平衡二叉树，其元素按如下顺序排列：
+
+- maxHeap：父节点大于子节点，从根节点出发的任意路径，遍历的元素为降序排列
+- minHeap：父节点小于子节点，从根节点出发的任意路径，遍历的元素为升序排列
+
+![image-20240416214212763](/Users/rocher/Library/Application Support/typora-user-images/image-20240416214212763.png)
+
+#### 1.2 实现
+
+以minHeap为例，实现对heap中元素的插入、删除等操作
+
+> - 插入insert(key)：
+>
+>   首先将待插入的key放置于叶节点层的最右一个叶节点的右侧，沿着朝向根节点的路径逐步上浮，如果父节点比当前key大，则将二者对调，直到父节点小于当前key，此操作不会影响其他路径节点的堆次序
+>
+> - 删除最小removeMin():
+>
+>   将原根节点删除，并将叶节点层的最右侧叶节点放于根节点位置，若子节点均小于当前节点，则要对当前节点进行下沉，下沉路径为：比较左右子节点大小，与较小的节点进行对调
+>
+> - 从无序表生成堆buildHeap(list):
+>
+>   如果使用insert方法将数据项逐个插入堆中，总时间复杂度为$O(n\log n)$，而使用下沉路径则可以将复杂度将为$O(n)$​. 即首先使用无序表构建一个平衡二叉树，对所有父节点进行下沉操作
+
+### 2. 堆排序HeapSort
+
+> 过程
+>
+> 1. 首先从无序列表构建一个堆
+> 2. 取堆顶元素放入最终输出的排序队列中
+> 3. 将最右侧的叶节点放入堆顶，再次使用下沉方法构建新堆
+> 4. 重复2-3，直至堆剩余最后一个元素
+
+## IV. Merge-Sort and Quick-Sort
+
+### 1. Merge Sort
+
+归并排序在排序中使用了分治策略与递归算法：将数据表持续分裂为两半，对两半再分别进行归并排序
+
+- 基本结束条件：数据表中仅包含1个数据项
+- 缩小规模：将数据表分为相等的两半
+- 调用自身：将两半分别调用自身排序，再将排好序的两半进行归并，得到排好的数据表
+
+程序实现
+
+```python
+def mergeSort(alist):
+    if len(alist) > 1:            # 递归的基本结束条件：表只有一个数据
+      	# 分裂为两半
+        mid = len(alist) // 2     
+        lefthalf = alist[:mid]
+        righthalf = alist[mid:]
+
+        mergeSort(lefthalf)    	# 递归调用对左半进行归并
+        mergeSort(righthalf)		# 递归调用对右半进行归并
+
+        # 左右半部合并
+        i = j = k = 0
+        while i < len(lefthalf) and j < len(righthalf): # 遍历两半部分列表
+            if lefthalf[i] < righthalf[j]:              # 交错对比，取最小的放入主列表中
+                alist[k] = lefthalf[i]
+                i += 1
+            else:
+                alist[k] = righthalf[j]
+                j += 1
+            k += 1         
+        # 经过交错对比放置后，所剩的元素只可能集中在某一半的列表
+        # 将剩余数据塞入主列表
+        while i < len(lefthalf):
+            alist[k] = lefthalf[i]	# 这里可以顺序塞入，因为递归过程中已经对子部分进行了排序
+            i += 1
+            k += 1
+        while j < len(righthalf):
+            alist[k] = righthalf[j]
+            j += 1
+            k += 1
+
+    return alist
+```
+
+>  **复杂度分析**：算法可以看作由两个过程组成，即分裂和归并
+>
+> - 分裂：每次分割一半，即$2^i=n$，故复杂度为$O(\log n)$；
+> - 归并：在分裂出的每个部分中，所有数据项都会被比较和放置一次，所以是线性复杂度$O(n)$
+>
+> 因此，总时间复杂度为$O(n\log n)$
+
+### 2. Quick Sort
+
+快速排序依据一个“中值”数据项把数据表分为两半，再对每部分分别进行快速排序
+
+- 
+- 如果要保证两半有相同的数据量，则需要计算中位数，同样存在计算开销。因此，可以选取第一个数作为中值，不一定保证划分的两半部分数据量相同
+- 递归的三要素：
+  - 基本结束条件：列表中仅有1个数据项
+  - 缩小规模：根据中值将数据表分为两半，最好情况是相等规模的两半
+  - 调用自身：将两半分别调用自身进行排序
+- 分裂数据表
+  - 目标：找到中值应该放置于表中的位置
+  - 方法：设置左右标
+    - 左标右移，直到碰到比中值大的数据项；右标左移，直到碰到比中值小的数据项
+    - 交换左右标的数据项（这时大的数据就被放在右侧，小的就被放在左侧）
+    - 当左标移动到右标的右侧时停止移动，右标的位置就是插入中值的位置
+    - 将中值和该位置数据交换，分裂完成
+
+程序实现
+
+```python
+def splitMiddle(alist, first, last):	# 首先定义一个根据中值划分列表的函数
+    mid = alist[first]								# 取传入的数据表的第一项作为中值点，后续数据与其进行比较
+    leftmark = first + 1		# 左指针从传入列表的第二个数据开始向右移动
+    rightmark = last				# 右指针从传入列表的最后一个数据向左移动
+    while leftmark <= rightmark:			# 当左指针在右指针右侧/重合时终止算法
+        if alist[leftmark] > mid:				# 首先左指针向右滑动记录数据，如果所指数据大于中值
+            temp = alist[leftmark]			# 指针停止并记录该数据，开始滑动右指针
+            if alist[rightmark] < mid:							# 如果右指针数据小于中值，指针停止
+                alist[leftmark] = alist[rightmark]	# 将左右指针位置上的数据互换
+                alist[rightmark] = temp							# 将左右指针位置上的数据互换
+            else:																		# 如果右指针数据大于中值，继续左滑
+                rightmark -= 1					
+        else:														# 如果左指针指向的数据小于中值，继续向右滑动
+            leftmark += 1
+    alist[first] = alist[rightmark]		# 循环结束后，右指针所在位置即为分割点
+    alist[rightmark] = mid						# 将起始位置与右指针位置的数据互换
+    return rightmark									# 返回分割点位置
+
+def quickSortHelper(alist, first, last):				# 定义辅助函数用于传入参数
+    if first < last:														# 算法终止条件：起始位置与终止位置重合
+        pivot = splitMiddle(alist, first, last)	# 获取分割点
+        quickSortHelper(alist, first, pivot-1)	# 分割点左侧递归自身
+        quickSortHelper(alist, pivot+1, last)		# 分割点右侧递归自身
+    return alist																# 返回排序完成的表
+  
+def quickSort(alist):														# 主函数
+    quickSortHelper(alist, 0, len(alist) - 1)		# 调用辅助函数，设定起始与终止位置
+    return alist
+```
+
+> **复杂度分析**：该过程分为分裂和移动两部分
+>
+> - 分裂：如果总能把数据表分成相等的两部分，则复杂度为$O(\log n)$
+> - 移动：此过程需要将每项都与中值进行对比，复杂度为$O(n)$
+>
+> 因此，总时间复杂度为$O(n\log n)$​​
+>
+> 此外，如果中值过于偏离实际的中位数，会造成两端数据量不平衡，极端情况下时间复杂度会退化到$O(n^2)$
+
+## V. Recursion, Devide-and-Conquer, Greedy
+
+## VI. Mathemetical Induction
+
+## VII. Dynamic Programming
+
+动态规划方法，从最简单的情况下的最优解开始，逐步递增，直到获得所需情况下的最优解，在递增过程中，需要设法保证每一步的递增都是最优解：
+
+- 问题的最优解已经包含了更小子规模问题的最优解，这是能够使用动态规划的必要条件
+
+> 案例一：找零问题。假设目前有[1, 5, 10, 25, 50]种类的硬币，求出指定找零数目下所需的最小硬币数量
+>
+> 问题分析：
+>
+> 1. 首先考虑找零钱数为1，2，... 情况下的最少硬币数量，例如1元-1个，2元-2个，...，5元-1个
+> 2. 如果计算11元的兑换方法，做如下几步：
+>    - 首先减1元硬币，剩下10元的最优解为1
+>    - 然后减5元硬币，剩下6元的最优解为2
+>    - 然后减10元硬币，剩下1元的最优解为1
+>    - 比较上述三种情况，最优解为1+1=2
+> 3. 因此，算法的基本原理应该是：使用所找的钱数减去硬币列表中的每个硬币，获得剩余钱数下的最优解，逐步缩减问题规模到最小规模
+>
+> 程序实现
+>
+> ```python
+> def dpMakeChange(coinValueList, change):
+>     # minCoins列表用于存储每种钱数下最少的硬币数量方便查表
+>     minCoins = [0] * (change + 1) 
+>     # 从1分钱开始，逐渐增加钱数直到目标钱数，算出每种情况下的最小硬币数
+>     for money in range(1, change + 1):
+>         coinCounts = money   # 最复杂的情况就是全都用1分钱，所以有cents个硬币
+>         # 遍历硬币面值小于等于目标钱数的所有硬币面值
+>         for j in [c for c in coinValueList if c <= cents]:
+>           	# 目标零钱减去单个硬币面值即为所剩待找零钱，查表比较待找零钱的最优解与目前的硬币数
+>             if minCoins[cents - j] + 1 < coinCounts:        
+>                 coinCounts = minCoins[cents - j] + 1# 取两者最小为待找的硬币数量
+>         minCoins[cents] = coinCounts# 将每种情况所需的最小硬币数量记录在minCoins列表中
+>     return minCoins[change]
+> ```
+>
+>  
+>
+> 案例二：博物馆盗贼问题。面对五件宝物，分别具有重量和价值，如何安排满载20kg的背包，使得所装物品价值最高？物品对应的重量（kg）和价值（万元）如下：1. [2, 3]; 2. [3, 4]; 3. [4, 8]; 4. [5, 8]; 5. [9, 10]
+>
+> 问题分析： 记$V(i, W)$为前$i$个宝物中，总重不超过$W$​的重量所能达到的最大价值。
+>
+> - 如果在获取$i-1$件时，背包已经超重，那么$V(i, W)=V(i-1,W)$，此时无法再加入宝物
+> - 如果在获取第$i$件时没有超重，那么可以获取第$i$件，而前$i-1$件的价值就是$V(i-1, W-W_i)$，故而加上第i件后的总价值就是$V(i-1, W-W_i)+v_i$
+> - 因此，$V(i, W)=\max\{V(i-1,W), V(i-1, W-W_i)+v_i\}$
+>
+> 所以问题变为从$V(1,1)$计算到$V(5,20)$。这里有两个变量，即应在不同拿取物品$i$条件下，让最大负重$W$从1至20，记录每种情况的最大价值并存储于二维表格中。注意到，在该二维数据表中每个数据仅依赖于其左侧或上侧的数据，例如$V(5,5)$，由于第5件重量9kg已经超重，因此
+> $$
+> V(5,5)=V(4,5)=\max\{V(3,5), V(3,0)+v_4\}
+> $$
+> 即每一步的状态都能由已经计算过的前集中状态得到。
+>
+> 程序实现：
+>
+> ```python
+> def museumTheft(trList, maxWeight):
+>     
+>     # 创建一个二维列表用于保存每个状态下的最优解
+>     value = {(i, w): 0 for i in range(len(trList)) for w in range(maxWeight+1)}
+> 		# 从拿前1个宝物开始，遍历到拿前i个宝物，直到拿所有宝物
+>     for i in range(1, len(trList)):     
+>         for w in range(1, maxWeight+1):     #载重量从1开始，直到最大载重量
+>           	# 如果想拿第i个宝物的重量超过了当前的背包载重量
+>             if trList[i]['w'] > w:                  
+>                 value[(i, w)] = value[(i-1, w)]     # 无法拿取，退回至拿前i-1宝物的情况
+>             # 如果第i个宝物没有超重
+>             else:
+>               	# 不拿当前宝物，退回至前i-1宝物的情况
+>                 dontloadCurrent = value[(i - 1, w)]
+>                 # 拿当前宝物
+>                 loadCurrent = value[(i-1, w-trList[i]['w'])] + trList[i]['v']
+>                 # 比较二者最大值
+>                 value[(i, w)] = max(dontloadCurrent, loadCurrent)  
+>     return value[(len(trList) - 1, maxWeight)]      # 返回结果
+> 
+> maxWeight = 20
+> # 使用字典存储宝物的重量价值信息，首位索引置空匹配函数代码
+> treasure = [None, {'w': 2, 'v': 3}, {'w': 3, 'v': 4}, {'w': 4, 'v': 8}, {'w': 5, 'v': 8}, {'w': 9, 'v': 10}]
+> 
+> print(museumTheft(treasure, maxWeight))
+> ```
+
+
+
+## VIII. Graph Traversals: BFS and DFS
+
+### 1. 图Graph
+
+#### 1.1 相关术语
+
+- 顶点Vertex或节点Node：图的基本组成部分，具有名称标识key，携带数据项
+- 边Edge：作为两个节点间关系的表示，根据是否带有方向，所构成的图称为有向图/无向图
+- 权重Weight：从一个节点到另一个节点的“代价”，从而给边赋权
+- 路径Path：由边依次连接的顶点序列，路径长度为边的数量（无权）或边权重之和（有权）
+- 圈Cycle：首尾顶点相同的路径
+- 有向无环图DAG：有向图中不存在任何圈路径，则称为DAG
+
+#### 1.2 定义
+
+一个图G被定义为$G=(V,E)$，其中：
+
+- V是顶点的集合，E是边的集合，E中的每条边$e=(v,w)$，其中v和w都是V中的顶点
+- 如果是赋权图，可以在e中添加权重分量
+
+#### 1.3 抽象数据类型
+
+- Graph(): 创建一个空的图
+- addNode(node): 将顶点node加入图中
+- addEdge(fromNode, toNode)：添加有向边
+- addEdge(fromNode, toNode, weight)：添加带权有向边
+- getNode(nodeKey)：查找名称为nodeKey的顶点
+- getNodes()：返回所有顶点列表
+- in：判断顶点是否在图中
+
+#### 1.4 实现方式：邻接矩阵与邻接表
+
+##### 1.4.1 邻接矩阵
+
+邻接矩阵的每行每列都代表图中的顶点，如果两个顶点之间有边相连，设定行列值为权重或1，无边相连则设定行列值为0。邻接矩阵优点在于方便理解及实现，缺点在于存储矩阵过于稀疏，效率较低。
+
+##### 1.4.2 邻接列表
+
+维护一个包含所有顶点的主列表master list，主列表中的每个顶点，再关联一个与自身有边相连的所有顶点的列表
+
+<img src="/Users/rocher/Library/Application Support/typora-user-images/image-20240417202522483.png" alt="image-20240417202522483" style="zoom:40%;" />
+
+### 2. 广度优先搜索BFS-Breadth First Search
+
+给定图G，以及开始搜索的起始顶点s：
+
+- BFS搜索所有从s可达到顶点的边
+- 在达到更远距离k+1的顶点之前，首先要找到全部距离为k的顶点
+- 可以想象以s为根，构建一棵树的过程，从顶部向下逐步增加层次 
+
+### 3. 深度优先搜索DFS-Depth First Search
+
+
+
+
+
+## IIX. Shortest Path: Dijkstra's Algorithm
+
+![image-20240417214954644](/Users/rocher/Library/Application Support/typora-user-images/image-20240417214954644.png)
+
+从0出发，计算到4的最短路径。
+
+Dijkstra算法：首先列一张如下表格
+
+| 节点 | 距离出发点0的距离 | 前一节点 |
+| :--: | :---------------: | :------: |
+|  0   |     $\infty$      |          |
+|  1   |     $\infty$      |          |
+|  2   |     $\infty$      |          |
+|  3   |     $\infty$      |          |
+|  4   |     $\infty$      |          |
+|  5   |     $\infty$      |          |
+|  6   |     $\infty$      |          |
+|  7   |     $\infty$      |          |
+|  8   |     $\infty$      |          |
+
+首先看节点0，自己到自己距离为0，记录距离。检查所有节点中距离最短的节点，并做～标记。
+
+继续沿着节点0进行，更新节点1和节点7的距离，节点1到初始节点距离为4，节点7为8，记录在表格中，并记录前一节点。继续比较未标记的节点，并～标记距离最小的节点（即节点1）。
+
+更新节点1的邻近节点2和7，由起始点经过1至2的距离为12，记录；由起始点经过1至7的距离为15，大于已记录的距离，放弃。再次更新列表。比较所有未标记节点，使用～标记距离最小的节点（即节点7）。
+
+更新节点7的邻近节点1，节点8和节点6，由于节点1已经标记故不考虑；节点8距离为15，记录；节点6距离为9，记录。比较所有未标记节点，使用～标记距离最小的节点（即节点6）。
+
+更新节点6的邻近节点8和5，节点8的距离为15，无需更新；节点5的距离为11，记录。比较所有未标记节点，使用～标记距离最小的节点（即节点5）。
+
+更新节点5的邻近节点2、3和4，节点2的距离为15，放弃；节点3的距离为25，记录；节点4的距离为21，记录。比较所有未标记节点，标记节点2。
+
+| 节点 | 距离出发点0的距离 | 前一节点 |
+| :--: | :---------------: | :------: |
+| 0～  |         0         |          |
+| 1～  |         4         |    0     |
+| 2～  |        12         |    1     |
+|  3   |        25         |    5     |
+|  4   |        21         |    5     |
+| 5 ～ |        11         |    6     |
+| 6 ～ |         9         |    7     |
+| 7 ～ |         8         |    0     |
+|  8   |        15         |    7     |
+
+更新节点2的邻近节点3和8，节点3的距离为19，小于原有的25，更新并记录；节点8的距离为14，小于原有的15，更新并记录。比较所有未标记节点，标记节点8。
+
+节点8的邻近节点都已经标记，无需更新。继续比较所有未标记节点，标记节点3。
+
+节点3的邻近节点4距离为28，大于原有的21，无需更新。最后标记节点4。
+
+| 节点 | 距离出发点0的距离 | 前一节点 |
+| :--: | :---------------: | :------: |
+| 0 ～ |         0         |          |
+| 1 ～ |         4         |    0     |
+| 2 ～ |        12         |    1     |
+| 3 ～ |        19         |    2     |
+|  4   |        21         |    5     |
+| 5 ～ |        11         |    6     |
+| 6 ～ |         9         |    7     |
+| 7 ～ |         8         |    0     |
+| 8 ～ |        14         |    2     |
+
+沿着节点4回溯其前一节点，再继续逐步回溯至起始点，可获得最短路径: $4 \leftarrow 5 \leftarrow 6 \leftarrow 7 \leftarrow 0$.
+
+## IX. Minimum Spanning Tree: Kruskal's and Prim's 
+
+### 1. 最小生成树MXT
+
+最小生成树，是指使用无环图构建的生成树中，权值和最小的树
+
+### 2. MST的构建
+
+![image-20240417222817851](/Users/rocher/Library/Application Support/typora-user-images/image-20240417222817851.png)
+
+#### 2.1 Kruskal算法
+
+1. 将所有的边列出，并由小到大进行排列
+2. 将所有的边按排列的顺序依次重新加回原图中，加入时判定图中是否存在环路，如果不存在则可以添加；如果存在则丢弃此边
+3. 直到添加了n-1条边（n为顶点个数）时，算法结束，丢弃所有剩余的边。
+
+![image-20240417223212222](/Users/rocher/Library/Application Support/typora-user-images/image-20240417223212222.png)
+
+#### 2.2 Prim算法
+
+首先构建两个集合，一个是进入最小生成树的顶点集合1，一个是尚未进入最小生成树的顶点集合2，Prim算法的原理就是取这两个集合区域中最小权值的边加入最小生成树，并将连接的顶点逐步加入集合1，直至集合2中不存在顶点。
+
+1. 此时顶点1距离最近，记录0-1边，将1加入绿色区域
+
+   <img src="/Users/rocher/Library/Application Support/typora-user-images/image-20240417224814199.png" alt="image-20240417224814199" style="zoom:30%;" />
+
+2. 此时节点1的邻近节点2和7中，距离绿色区域最短的边是1-2:距离8，0-7:距离8，都可以选，选7加入绿色区域，并记录边0-7
+
+   <img src="/Users/rocher/Library/Application Support/typora-user-images/image-20240417224944504.png" alt="image-20240417224944504" style="zoom:30%;" />
+
+3. 此时节点7的邻近节点8和6中，距离绿色区域最近的节点为6，将6加入绿色区域，并记录边7-6
+
+   <img src="/Users/rocher/Library/Application Support/typora-user-images/image-20240417225157860.png" alt="image-20240417225157860" style="zoom:30%;" />
+
+4. 此时节点6的邻近节点8和5中，离绿色区域最近的节点为5，将5加入绿色区域并记录边6-5。
+
+   <img src="/Users/rocher/Library/Application Support/typora-user-images/image-20240417225343824.png" alt="image-20240417225343824" style="zoom:30%;" />
+
+5. 此时节点5的邻近节点2，3，4中，离绿色区域最近的距离为节点2，将2加入绿色区域并记录边1-2.
+
+   <img src="/Users/rocher/Library/Application Support/typora-user-images/image-20240417225519996.png" alt="image-20240417225519996" style="zoom:30%;" />
+
+6. 此时节点2的邻近节点3和8中，离绿色区域最近为节点8，将8加入绿色区域并记录边2-8。
+
+   <img src="/Users/rocher/Library/Application Support/typora-user-images/image-20240417225701025.png" alt="image-20240417225701025" style="zoom:30%;" />
+
+7. 此时节点8的邻近节点已经全部在绿色区域中，剩余节点3和4，离绿色区域最近的为节点3，加入并记录2-3
+
+   <img src="/Users/rocher/Library/Application Support/typora-user-images/image-20240417230024968.png" alt="image-20240417230024968" style="zoom:30%;" />
+
+8. 此时节点4离绿色区域最近的边为3-4，记录。
+
+   <img src="/Users/rocher/Library/Application Support/typora-user-images/image-20240417230231905.png" alt="image-20240417230231905" style="zoom:30%;" />
+
+9. 最终获得MST如下
+
+   ![image-20240417230314569](/Users/rocher/Library/Application Support/typora-user-images/image-20240417230314569.png)
+
