@@ -1,0 +1,6 @@
+As some students are asking about the types and tips regarding the QE exam of Digital Image Processing, I'm sending this message to clarify.
+
+Refer the screenshot of the first page of the exam for the number and types of questions.
+The exam will cover topics listed in the syllabus.
+Please refer to the zip file which contains lecture slides on matching, color and image restoration, supplementing the available slides at moodle. The exam might have questions on these topics.
+The exam focus on testing your understanding of important concepts and rationale, and ability to apply fundamental tools to solve basic problems. So you don't need to memorize formula.
