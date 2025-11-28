@@ -28,12 +28,6 @@ Please respect the original authors and the university’s policies when using t
 The materials in this repository come from the efforts and contributions of many students, alumni, and peers over the years.
 This repo aims to carry forward this tradition, allowing future students to continue improving, expanding, and passing on the knowledge.
 
-## ⚠️ Disclaimer
-
-This repository is **not affiliated with the University of Macau**.
-Some materials are summaries or personal整理 based on publicly accessible content.
-Please do not upload any copyrighted or restricted files from UM Moodle or other platforms without permission.
-
 ## 🤝 Contributions
 
 Feel free to submit pull requests with improved notes, additional references, or corrections.
