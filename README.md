@@ -23,7 +23,7 @@ Please respect the original authors and the university’s policies when using t
 * Practice question sets
 * Additional references for deeper study
 
-🙏 Acknowledgment
+## 🙏 Acknowledgment
 
 The materials in this repository come from the efforts and contributions of many students, alumni, and peers over the years.
 This repo aims to carry forward this tradition, allowing future students to continue improving, expanding, and passing on the knowledge.
